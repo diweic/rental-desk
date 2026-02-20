@@ -49,5 +49,8 @@ local.db-wal
 .wrangler/
 .dev.vars
 
+# Claude Code project memory
+.claude/
+
 # OS
 Thumbs.db
