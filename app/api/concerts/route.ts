@@ -13,7 +13,7 @@ import { getDb } from "@/lib/get-db";
 // GET /api/concerts
 export async function GET(request: NextRequest) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
     const { results } = await db
       .prepare("SELECT * FROM concert_calendar ORDER BY start_date DESC")
       .all();
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 // Body: { title, location_type, start_date, end_date }
 export async function POST(request: NextRequest) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
     const body = await request.json() as Record<string, unknown>;
 
     const title = sanitizeText(body.title);

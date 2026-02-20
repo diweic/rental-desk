@@ -10,7 +10,7 @@ import { getDb } from "@/lib/get-db";
 
 export async function POST(request: NextRequest) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
     const body = await request.json() as Record<string, unknown>;
 
     const username = sanitizeText(body.username);

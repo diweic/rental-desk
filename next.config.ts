@@ -1,12 +1,11 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+// Keep the next-intl plugin so getMessages() and useTranslations() work in
+// server components. The plugin does NOT require middleware — it just wires
+// up the request config path. We removed middleware (proxy.ts) separately.
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
-const nextConfig: NextConfig = {
-  // Required for Cloudflare Pages / Workers deployment
-  // Remove this if deploying to Vercel or other Node.js platforms
-  // output: "export", // uncomment only for static export — not needed with Cloudflare Pages
-};
+const nextConfig: NextConfig = {};
 
 export default withNextIntl(nextConfig);

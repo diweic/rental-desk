@@ -12,7 +12,7 @@ import { getDb } from "@/lib/get-db";
 export async function GET(request: NextRequest) {
   try {
     await requireAdminSession();
-    const db = await getDb(request);
+    const db = await getDb();
 
     const { results } = await db
       .prepare("SELECT * FROM client_urls ORDER BY created_at DESC")
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await requireAdminSession();
-    const db = await getDb(request);
+    const db = await getDb();
 
     const body = await request.json() as Record<string, unknown>;
     const label = sanitizeText(body.label);

@@ -6,7 +6,7 @@ import { getDb } from "@/lib/get-db";
 
 export async function GET(request: NextRequest) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
 
     const { results } = await db
       .prepare(

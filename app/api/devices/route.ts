@@ -10,7 +10,7 @@ import { getDb } from "@/lib/get-db";
 // GET /api/devices — returns all devices ordered by type then name.
 export async function GET(request: NextRequest) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
 
     const { results } = await db
       .prepare("SELECT * FROM device_asset ORDER BY device_type, device_name")
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 // Body: { device_name: string, device_type: "camerabody"|"lense", color?: string }
 export async function POST(request: NextRequest) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
 
     const body = await request.json() as Record<string, unknown>;
 

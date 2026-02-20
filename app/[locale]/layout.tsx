@@ -3,12 +3,12 @@
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { routing } from "@/i18n/routing";
+import { locales } from "@/i18n/routing";
 import Providers from "@/providers/Providers";
 
 // Tell Next.js which locale values are valid for static generation.
 export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
+  return locales.map((locale) => ({ locale }));
 }
 
 export default async function LocaleLayout({
@@ -21,7 +21,7 @@ export default async function LocaleLayout({
   const { locale } = await params;
 
   // Reject unsupported locales with a 404.
-  if (!routing.locales.includes(locale as "en-us")) {
+  if (!locales.includes(locale as typeof locales[number])) {
     notFound();
   }
 

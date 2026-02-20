@@ -1,6 +1,14 @@
-name = "rental-management-system"
+name = "long-snow-3188"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
+
+# OpenNext build output entry point
+main = ".open-next/worker.js"
+
+# Static assets produced by OpenNext
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"

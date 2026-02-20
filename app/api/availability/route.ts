@@ -7,7 +7,7 @@ import { getDb } from "@/lib/get-db";
 
 export async function GET(request: NextRequest) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
 
     const { searchParams } = new URL(request.url);
     const deviceIds = searchParams.getAll("deviceId").map(Number).filter(Number.isFinite);

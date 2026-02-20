@@ -48,9 +48,14 @@ local.db-wal
 # Cloudflare / Wrangler
 .wrangler/
 .dev.vars
+.open-next/
 
 # Claude Code project memory
 .claude/
+
+# Secrets (never commit)
+admin_secrets.md
+issues_todo.md
 
 # OS
 Thumbs.db

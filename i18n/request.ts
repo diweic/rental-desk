@@ -1,11 +1,13 @@
 import { getRequestConfig } from "next-intl/server";
-import { routing } from "./routing";
+import { locales, defaultLocale } from "./routing";
 
+// next-intl server-only mode: no middleware, locale comes from URL param.
 export default getRequestConfig(async ({ requestLocale }) => {
-  // Validate that the locale from the URL is one we support
   let locale = await requestLocale;
-  if (!locale || !routing.locales.includes(locale as "en-us")) {
-    locale = routing.defaultLocale;
+
+  // Fall back to default if locale is missing or unsupported.
+  if (!locale || !locales.includes(locale as typeof locales[number])) {
+    locale = defaultLocale;
   }
 
   return {

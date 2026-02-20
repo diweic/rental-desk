@@ -13,7 +13,7 @@ export async function PATCH(
 ) {
   try {
     await requireAdminSession();
-    const db = await getDb(request);
+    const db = await getDb();
     const { id } = await params;
     const urlId = parseInt(id, 10);
 
@@ -63,7 +63,7 @@ export async function DELETE(
 ) {
   try {
     await requireAdminSession();
-    const db = await getDb(request);
+    const db = await getDb();
     const { id } = await params;
     const urlId = parseInt(id, 10);
 

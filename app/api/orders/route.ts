@@ -17,7 +17,7 @@ import { getDb } from "@/lib/get-db";
 // GET /api/orders — returns all orders with concert title and device names joined.
 export async function GET(request: NextRequest) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
 
     const { results } = await db
       .prepare(
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 //         occupy_mode, buffer_days_before?, buffer_days_after?, notes? }
 export async function POST(request: NextRequest) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
     const body = await request.json() as Record<string, unknown>;
 
     // ── 1. Validate required fields ────────────────────────────────────────

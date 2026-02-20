@@ -9,7 +9,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const db = await getDb(request);
+    const db = await getDb();
     const { id } = await params;
     const orderId = parseInt(id, 10);
 
