@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Required for Cloudflare Pages / Workers deployment
+  // Remove this if deploying to Vercel or other Node.js platforms
+  // output: "export", // uncomment only for static export — not needed with Cloudflare Pages
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

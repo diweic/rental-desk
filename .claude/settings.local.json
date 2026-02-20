@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wrangler d1 create:*)",
+      "Bash(wrangler d1 execute:*)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --no-eslint --import-alias \"@/*\")",
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(1:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(/tmp/concerts_id_patch.py:*)",
+      "Bash(python3:*)",
+      "Bash(/tmp/orders_patch.py:*)",
+      "Bash(curl:*)",
+      "Bash(node -e:*)",
+      "Bash(pkill:*)",
+      "Bash(/Users/porter/Desktop/RentalManagementSystem/app/api/calendar/route.ts:*)",
+      "Bash(/Users/porter/Desktop/RentalManagementSystem/app/api/availability/route.ts:*)",
+      "Bash(/Users/porter/Desktop/RentalManagementSystem/app/api/admin/login/route.ts:*)",
+      "Bash(/Users/porter/Desktop/RentalManagementSystem/app/api/admin/urls/route.ts:*)",
+      "Bash(timeout 12 npm run dev:*)"
+    ]
+  }
+}

@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local dev SQLite database (better-sqlite3 mock for D1)
+local.db
+local.db-shm
+local.db-wal
+
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+
+# OS
+Thumbs.db

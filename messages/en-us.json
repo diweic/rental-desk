@@ -1,0 +1,43 @@
+{
+  "app": {
+    "name": "Rental Manager",
+    "tagline": "Camera rental management for concert events"
+  },
+  "nav": {
+    "calendar": "Calendar",
+    "orders": "Orders",
+    "inventory": "Inventory"
+  },
+  "landing": {
+    "title": "Rental Manager",
+    "subtitle": "Streamlined camera rental management for concert events.",
+    "continueAsGuest": "Continue as Guest"
+  },
+  "calendar": {
+    "title": "Device Calendar",
+    "noEvents": "No bookings yet"
+  },
+  "orders": {
+    "title": "Orders",
+    "tabs": {
+      "pastOrders": "Past Orders",
+      "createConcert": "New Concert",
+      "createOrder": "New Order"
+    }
+  },
+  "inventory": {
+    "title": "Inventory",
+    "addDevice": "Add Device",
+    "noDevices": "No devices yet. Add a camera body or lens to get started."
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "Something went wrong.",
+    "required": "Required"
+  }
+}

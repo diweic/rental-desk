@@ -1,0 +1,8 @@
+name = "rental-management-system"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rental-management"
+database_id = "abbc447e-472e-429d-b84b-c8a5c24bfa49"

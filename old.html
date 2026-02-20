@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>租赁系统 (扫码协作版)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    
+    <style>
+        body { background-color: #f4f6f8; padding-bottom: 100px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .tab-content-section { display: none; padding: 15px; }
+        .tab-content-section.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid #ddd; display: flex; justify-content: space-around; padding: 8px 0; z-index: 1000; }
+        .nav-item { text-align: center; color: #999; font-size: 11px; flex: 1; cursor: pointer; }
+        .nav-item.active { color: #0d6efd; font-weight: bold; }
+        .nav-icon { font-size: 22px; display: block; margin-bottom: 2px; }
+
+        #calendar { background: white; border-radius: 8px; padding: 10px; }
+        .fc-event { border: none !important; margin-bottom: 2px !important; cursor: pointer; }
+        .fc-event-main { padding: 3px 5px; font-size: 0.75em; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .mode-safe { border-left: 4px solid #28a745 !important; }
+        .mode-agg { border-left: 4px solid #dc3545 !important; }
+        .mode-ship { border-left: 4px solid #fd7e14 !important; }
+        .mode-custom { border-left: 4px solid #6f42c1 !important; }
+        
+        .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 15px; }
+        .sub-nav-pills { display: flex; gap: 10px; margin-bottom: 15px; background: #e9ecef; padding: 5px; border-radius: 8px; }
+        .sub-nav-item { flex: 1; text-align: center; padding: 8px 0; border-radius: 6px; font-size: 14px; color: #666; cursor: pointer; position: relative; }
+        .sub-nav-item.active { background: white; color: #0d6efd; font-weight: bold; }
+        .notification-badge { position: absolute; top: 5px; right: 15px; background-color: #dc3545; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; display: none; }
+        
+        .locked-section { pointer-events: none; opacity: 0.7; background-color: #f8f9fa; border: 1px solid #dee2e6; }
+        .locked-input { background-color: #e9ecef !important; border-color: #ced4da; color: #495057; font-weight: bold; }
+
+        .sim-card { border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px; overflow: hidden; background: white; }
+        .sim-header { background: #f8f9fa; padding: 8px 12px; font-weight: bold; font-size: 14px; border-bottom: 1px solid #eee; }
+        .sim-body { padding: 10px; }
+        .sim-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; }
+        .sim-tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; color: white; width: 45px; text-align: center; display: inline-block; }
+        .tag-safe { background-color: #28a745; } .tag-agg { background-color: #dc3545; }
+        .sim-btn { border: 1px solid #ddd; background: white; border-radius: 15px; padding: 2px 10px; font-size: 12px; color: #333; min-width: 50px; cursor: pointer; }
+        
+        .help-icon { cursor: pointer; color: #6c757d; font-size: 14px; margin-left: 4px; }
+        .text-occupied { color: #aaa; font-style: italic; }
+        
+        /* 二维码与扫码样式 */
+        #qrcode-container { display: flex; justify-content: center; margin-top: 10px; background: white; padding: 10px; border-radius: 8px; min-height: 200px; align-items: center; }
+        #qrcode-container img { max-width: 100%; margin: auto; }
+        #reader { width: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="tab-calendar" class="tab-content-section active">
+    <h5 class="mb-3 fw-bold ps-2 border-start border-4 border-primary">排期日历</h5>
+    <div id="calendar"></div>
+</div>
+
+<div id="tab-order" class="tab-content-section">
+    <div class="sub-nav-pills">
+        <div class="sub-nav-item active" onclick="switchOrderSubTab('create', this)">新建订单</div>
+        <div class="sub-nav-item" onclick="switchOrderSubTab('history', this)">
+            历史记录 <span id="historyBadge" class="notification-badge">0</span>
+        </div>
+    </div>
+
+    <div id="sub-create">
+        <div class="card p-3 border-top border-3 border-primary" id="projectSection">
+            <h6 class="fw-bold text-primary mb-3">1. 建立演唱会项目</h6>
+            <div class="mb-2">
+                <label class="form-label small text-muted">项目名称</label>
+                <input type="text" id="projName" class="form-control form-control-sm" placeholder="例如: 五月天厦门站">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small text-muted">演唱会持续时间段</label>
+                <div class="input-group input-group-sm">
+                    <input type="date" id="projStartDate" class="form-control">
+                    <span class="input-group-text">至</span>
+                    <input type="date" id="projEndDate" class="form-control">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small text-muted">场景模式</label>
+                <div class="btn-group w-100 btn-group-sm">
+                    <input type="radio" class="btn-check" name="projScenario" id="scLocal" value="local" checked>
+                    <label class="btn btn-outline-primary" for="scLocal">📍 本地连开</label>
+                    <input type="radio" class="btn-check" name="projScenario" id="scShip" value="shipping">
+                    <label class="btn btn-outline-dark" for="scShip">📦 外地邮寄</label>
+                </div>
+            </div>
+            <button id="btnLockProject" onclick="lockProject()" class="btn btn-primary w-100 btn-sm fw-bold">确定并建立项目</button>
+        </div>
+
+        <div class="card p-3 border-top border-3 border-success" id="orderSection" style="display:none; opacity:0.5; pointer-events:none;">
+            <h6 class="fw-bold text-success mb-3">2. 添加设备订单</h6>
+            <div class="btn-group w-100 btn-group-sm mb-3">
+                <input type="radio" class="btn-check" name="orderType" id="typeSingle" value="single" checked onchange="toggleOrderType()">
+                <label class="btn btn-outline-success" for="typeSingle">单日租</label>
+                <input type="radio" class="btn-check" name="orderType" id="typeMulti" value="multi" onchange="toggleOrderType()">
+                <label class="btn btn-outline-success" for="typeMulti">连租</label>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small text-muted">选择租赁时间</label>
+                <div id="dateInputSingle">
+                    <input type="date" id="orderSingleDate" class="form-control form-control-sm" onchange="onOrderDateChange()">
+                </div>
+                <div id="dateInputMulti" style="display:none">
+                    <div class="input-group input-group-sm">
+                        <input type="date" id="orderStartDate" class="form-control" onchange="onOrderDateChange()">
+                        <span class="input-group-text">至</span>
+                        <input type="date" id="orderEndDate" class="form-control" onchange="onOrderDateChange()">
+                    </div>
+                    <div id="orderDurationText" class="text-end text-primary small mt-1" style="font-size:10px"></div>
+                </div>
+            </div>
+            <div class="card bg-light p-2 mb-3 border" id="ruleConfigCard">
+                <label class="form-label small fw-bold text-dark mb-1">本单占用规则</label>
+                <div id="ruleLocalArea">
+                    <div class="btn-group w-100 btn-group-sm">
+                        <input type="radio" class="btn-check" name="rentMode" id="modeSafe" value="safe" checked onchange="onOrderDateChange()">
+                        <label class="btn btn-outline-success" for="modeSafe">安全 <span onclick="showHelp('safe', event)" class="help-icon">[?]</span></label>
+                        <input type="radio" class="btn-check" name="rentMode" id="modeAgg" value="aggressive" onchange="onOrderDateChange()">
+                        <label class="btn btn-outline-danger" for="modeAgg">激进 <span onclick="showHelp('agg', event)" class="help-icon">[?]</span></label>
+                        <input type="radio" class="btn-check" name="rentMode" id="modeCustom" value="custom" onchange="toggleCustomInputs()">
+                        <label class="btn btn-outline-secondary" for="modeCustom">自定义</label>
+                    </div>
+                    <div id="customInputArea" class="mt-2 row g-2" style="display:none">
+                         <div class="col-6"><input type="number" id="customPre" class="form-control form-control-sm" placeholder="前置天" value="0" onchange="onOrderDateChange()"></div>
+                         <div class="col-6"><input type="number" id="customPost" class="form-control form-control-sm" placeholder="后置天" value="0" onchange="onOrderDateChange()"></div>
+                    </div>
+                </div>
+                <div id="ruleShipArea" style="display:none">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">单程路途</span>
+                        <input type="number" id="shipDays" class="form-control" value="2" min="1" onchange="onOrderDateChange()">
+                        <span class="input-group-text">天</span>
+                    </div>
+                    <small class="text-muted d-block mt-1" style="font-size:10px">占用 = 前置路途 + 租赁期 + 后置路途</small>
+                </div>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label class="form-label small text-muted">机身 <small class="text-danger" id="bodyStatus"></small></label>
+                    <select id="selectBody" class="form-select form-select-sm" disabled onchange="previewSelection()">
+                        <option value="">-- 请选择 --</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label small text-muted">镜头 <small class="text-danger" id="lensStatus"></small></label>
+                    <select id="selectLens" class="form-select form-select-sm" disabled onchange="previewSelection()">
+                        <option value="">-- 请选择 --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="alert alert-light border p-2 mb-3" id="previewBox" style="display:none">
+                <small class="text-muted d-block">组合预览:</small><div id="previewText" class="fw-bold text-dark"></div>
+            </div>
+             <div class="mb-2">
+                <label class="form-label small text-muted">备注</label>
+                <input type="text" id="rentNote" class="form-control form-control-sm" placeholder="客户名/联系方式等">
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-6"><input type="number" id="rentPrice" class="form-control form-control-sm" placeholder="租金" oninput="calcPrice()"></div>
+                <div class="col-6"><input type="number" id="shipCost" class="form-control form-control-sm" placeholder="运费" oninput="calcPrice()"></div>
+            </div>
+            <div class="d-flex justify-content-between text-muted small mb-3">
+                 <span>扣费: <span id="calcFee" class="text-danger">0</span></span><span class="fw-bold text-success">净: ¥<span id="calcNet">0</span></span>
+            </div>
+            <button onclick="addOrder()" class="btn btn-success w-100 py-2 fw-bold shadow-sm">提交订单</button>
+        </div>
+
+        <div class="card p-3 border-top border-3 border-secondary" id="projectControlSection" style="display:none;">
+            <h6 class="fw-bold text-secondary mb-3">3. 结算与归档</h6>
+            <div class="alert alert-warning small p-2 mb-3">
+                当前项目：<strong id="currentProjDisplay" class="text-dark"></strong><br>
+                所有订单已记入历史。结束项目将清除“新建”页面的设置，以便开始下一个项目。
+            </div>
+            <button onclick="unlockProject()" class="btn btn-outline-danger w-100 btn-sm">结束当前项目 / 新建</button>
+        </div>
+    </div>
+
+    <div id="sub-history" style="display:none">
+        <div class="card bg-primary text-white p-3 mb-3">
+            <div class="d-flex justify-content-between text-center">
+                <div><div class="h4 mb-0">¥<span id="statTotalNet">0</span></div><small>总净入</small></div>
+                <div><div class="h4 mb-0">¥<span id="statTotalGross">0</span></div><small>总流水</small></div>
+                <div><div class="h4 mb-0">¥<span id="statTotalShip">0</span></div><small>总运费</small></div>
+            </div>
+        </div>
+        <h6 class="text-muted ms-1 mb-3">按项目归类 (<span id="historyCount">0</span>单)</h6>
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<div id="tab-inventory" class="tab-content-section">
+    <div class="card border-primary mb-3">
+        <div class="card-header bg-primary text-white fw-bold py-2">🔮 智能接单推演</div>
+        <div class="card-body p-2 bg-light">
+            <div id="simInfoBar" class="alert alert-secondary py-1 small mb-2 text-center">
+                暂无活跃项目，请先在“新建订单”建立项目
+            </div>
+            <div id="simulationResults"></div>
+        </div>
+    </div>
+
+    <h5 class="mb-3 fw-bold ps-2 border-start border-4 border-warning">库存管理</h5>
+    <div class="card p-3 mb-3">
+        <div class="row g-2 mb-2">
+            <div class="col-8"><input type="text" id="invName" class="form-control" placeholder="名称"></div>
+            <div class="col-4"><select id="invType" class="form-select"><option value="body">机身</option><option value="lens">镜头</option></select></div>
+        </div>
+        <div class="d-flex align-items-center mb-3 bg-light p-2 rounded border">
+            <input type="color" id="invColor" class="form-control form-control-color" style="width:50px">
+            <div class="ms-2 flex-grow-1"><small class="text-dark" id="colorCodeText">#Random</small></div>
+            <button onclick="refreshRandomColor()" class="btn btn-outline-secondary btn-sm me-2">🎲</button>
+        </div>
+        <button onclick="addInventory()" class="btn btn-warning text-white w-100">添加设备</button>
+    </div>
+    <div class="card p-3">
+        <div class="d-flex justify-content-between mb-2 border-bottom pb-1">
+            <span class="fw-bold small">设备库</span>
+            <a href="#" onclick="resetInventory()" class="text-danger small text-decoration-none">清空</a>
+        </div>
+        <ul class="list-group list-group-flush small" id="invList"></ul>
+    </div>
+</div>
+
+<div id="tab-data" class="tab-content-section">
+    <h5 class="mb-3 fw-bold ps-2 border-start border-4 border-info">数据管理</h5>
+    
+    <div class="card border-info mb-3">
+        <div class="card-header bg-info text-white fw-bold">🤝 团队协作</div>
+        <div class="card-body p-3">
+            <h6 class="small text-muted fw-bold">1. 接收数据 (写入)</h6>
+            <div class="d-flex gap-2 mb-2">
+                <button class="btn btn-primary btn-sm w-50" onclick="openScanModal()">📸 扫码写入</button>
+                <button class="btn btn-outline-primary btn-sm w-50" onclick="applyFromInput()">📝 粘贴文本写入</button>
+            </div>
+            <textarea id="inputOpCode" class="form-control form-control-sm mb-3" rows="2" placeholder="若无法扫码，请在此粘贴代码..."></textarea>
+            
+            <hr class="my-2">
+            
+            <h6 class="small text-muted fw-bold mt-2">2. 发送数据 (生成)</h6>
+            <p class="small text-muted mb-2" style="font-size:10px">包含完整库存、订单历史。数据已压缩。</p>
+            
+            <div class="d-flex gap-2">
+                <button class="btn btn-secondary btn-sm w-50" onclick="generateQRCode()">📱 显示二维码</button>
+                <button class="btn btn-outline-secondary btn-sm w-50" onclick="copyCode()">📄 复制压缩码</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-4 text-center">
+        <button onclick="exportToExcel()" class="btn btn-success mb-3 w-100 py-2">💾 导出 Excel</button>
+        <div class="position-relative w-100">
+             <button class="btn btn-outline-primary w-100 py-2">📂 读取 Excel</button>
+             <input type="file" onchange="importFromExcel(this)" accept=".xlsx, .xls" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+        </div>
+    </div>
+</div>
+
+<div class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('calendar', this)"><span class="nav-icon">📅</span>日历</div>
+    <div class="nav-item" onclick="switchTab('order', this)"><span class="nav-icon">📝</span>订单</div>
+    <div class="nav-item" onclick="switchTab('inventory', this)"><span class="nav-icon">🔮</span>库存</div>
+    <div class="nav-item" onclick="switchTab('data', this)"><span class="nav-icon">💾</span>数据</div>
+</div>
+
+<div class="modal fade" id="detailModal" tabindex="-1"><div class="modal-dialog modal-dialog-scrollable modal-sm modal-dialog-centered"><div class="modal-content"><div class="modal-header py-2"><h6 class="modal-title fw-bold" id="detailTitle">详情</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-0"><div id="detailList" class="detail-list"></div></div></div></div></div>
+<div class="modal fade" id="editModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">订单操作</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="hidden" id="editId"><p class="text-muted small">修改请删除后重新添加。</p></div><div class="modal-footer"><button type="button" class="btn btn-danger w-100" onclick="deleteEvent()">删除此订单</button></div></div></div></div>
+<div class="modal fade" id="helpModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="helpTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="helpBody"></div></div></div></div>
+
+<div class="modal fade" id="qrModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">让队友扫码</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="qrcode-container"></div>
+                <p class="small text-muted mt-2 mb-0">如果数据过多无法显示，请使用“复制压缩码”功能。</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="scanModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">扫描队友二维码</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopScanner()"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="reader" style="width: 100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let inventory = [], eventsData = [], currentProject = null, calendar, serialCounter = 1, unreadCount = 0, simulationData = {};
+    let detailModal, editModal, helpModal, qrModal, scanModal;
+    let html5QrCodeScanner = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+        editModal = new bootstrap.Modal(document.getElementById('editModal'));
+        helpModal = new bootstrap.Modal(document.getElementById('helpModal'));
+        qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
+        scanModal = new bootstrap.Modal(document.getElementById('scanModal'));
+        
+        const calendarEl = document.getElementById('calendar');
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth', locale: 'zh-cn', height: 'auto', contentHeight: 'auto', dayMaxEvents: false,
+            headerToolbar: { left: 'prev,next', center: 'title', right: 'today' },
+            eventDidMount: function(info) {
+                const props = info.event.extendedProps;
+                const el = info.el;
+                if(props.mode==='safe') el.classList.add('mode-safe');
+                else if(props.mode==='aggressive') el.classList.add('mode-agg');
+                else if(props.mode==='shipping') el.classList.add('mode-ship');
+                else el.classList.add('mode-custom');
+                if (props.bodyColor && props.lensColor && props.bodyColor !== props.lensColor) {
+                    el.style.background = `repeating-linear-gradient(135deg, ${props.bodyColor}, ${props.bodyColor} 10px, ${props.lensColor} 10px, ${props.lensColor} 20px)`;
+                } else { el.style.backgroundColor = props.itemColor; }
+            }, events: []
+        });
+        calendar.render();
+        loadLocalCache(); refreshRandomColor(); updateInventoryList();
+    });
+
+    function refreshCalendar() {
+        if(!calendar) return;
+        calendar.removeAllEvents();
+        const evs = eventsData.map(e => ({
+            id: e.id,
+            title: e.itemName,
+            start: e.startStr,
+            end: e.endStr,
+            backgroundColor: e.itemColor,
+            extendedProps: { mode: e.mode, bodyColor: e.bodyColor, lensColor: e.lensColor, itemColor: e.itemColor, serialNo: e.serialNo }
+        }));
+        calendar.addEventSource(evs);
+    }
+
+    // --- 项目管理逻辑 ---
+    function lockProject() {
+        const name = document.getElementById('projName').value;
+        const start = document.getElementById('projStartDate').value;
+        const end = document.getElementById('projEndDate').value;
+        
+        if(!name || !start || !end) return alert("请填写完整的项目信息");
+        if(new Date(end) < new Date(start)) return alert("结束日期不能早于开始日期");
+
+        const isLocal = document.getElementById('scLocal').checked;
+        currentProject = { name, start, end, scenario: isLocal ? 'local' : 'shipping' };
+
+        document.getElementById('projectSection').classList.add('locked-section');
+        document.getElementById('projName').classList.add('locked-input');
+        document.querySelectorAll('#projectSection input, #projectSection label').forEach(el => el.disabled = true);
+        document.getElementById('btnLockProject').style.display = 'none'; 
+
+        document.getElementById('orderSection').style.display = 'block';
+        document.getElementById('orderSection').style.opacity = '1';
+        document.getElementById('orderSection').style.pointerEvents = 'auto';
+
+        document.getElementById('projectControlSection').style.display = 'block';
+        document.getElementById('currentProjDisplay').innerText = name;
+
+        if(isLocal) {
+            document.getElementById('ruleLocalArea').style.display = 'block';
+            document.getElementById('ruleShipArea').style.display = 'none';
+            document.getElementById('modeSafe').checked = true;
+        } else {
+            document.getElementById('ruleLocalArea').style.display = 'none';
+            document.getElementById('ruleShipArea').style.display = 'block';
+        }
+        autoRunSimulation();
+        saveLocalCache();
+    }
+
+    function unlockProject() {
+        if(!confirm("确定结束当前项目？将重置项目设置（历史订单已自动保存）。")) return;
+        
+        document.getElementById('projectSection').classList.remove('locked-section');
+        document.getElementById('projName').classList.remove('locked-input');
+        document.querySelectorAll('#projectSection input, #projectSection label').forEach(el => el.disabled = false);
+        document.getElementById('btnLockProject').style.display = 'block';
+        
+        document.getElementById('orderSection').style.display = 'none';
+        document.getElementById('projectControlSection').style.display = 'none';
+        
+        currentProject = null;
+        document.getElementById('projName').value = '';
+        document.getElementById('projStartDate').value = '';
+        document.getElementById('projEndDate').value = '';
+        document.getElementById('simInfoBar').innerText = "暂无活跃项目";
+        document.getElementById('simulationResults').innerHTML = '';
+        saveLocalCache();
+    }
+
+    function toggleOrderType() {
+        const isMulti = document.getElementById('typeMulti').checked;
+        document.getElementById('dateInputSingle').style.display = isMulti ? 'none' : 'block';
+        document.getElementById('dateInputMulti').style.display = isMulti ? 'block' : 'none';
+        onOrderDateChange();
+    }
+
+    function toggleCustomInputs() {
+        const mode = document.querySelector('input[name="rentMode"]:checked').value;
+        document.getElementById('customInputArea').style.display = (mode === 'custom') ? 'flex' : 'none';
+        onOrderDateChange();
+    }
+
+    function onOrderDateChange() {
+        if(!currentProject) return;
+        const isMulti = document.getElementById('typeMulti').checked;
+        let sStr, eStr;
+        if(isMulti) {
+            sStr = document.getElementById('orderStartDate').value;
+            eStr = document.getElementById('orderEndDate').value;
+        } else {
+            sStr = document.getElementById('orderSingleDate').value;
+            eStr = sStr;
+        }
+
+        const bodySel = document.getElementById('selectBody');
+        const lensSel = document.getElementById('selectLens');
+        const infoDiv = document.getElementById('orderDurationText');
+
+        if(!sStr || !eStr) {
+            bodySel.disabled = true; lensSel.disabled = true;
+            bodySel.innerHTML = '<option value="">-- 请选择 --</option>'; 
+            lensSel.innerHTML = '<option value="">-- 请选择 --</option>'; 
+            infoDiv.innerText = '';
+            return;
+        }
+
+        const dStart = new Date(sStr); const dEnd = new Date(eStr);
+        const pStart = new Date(currentProject.start); const pEnd = new Date(currentProject.end);
+
+        if(dEnd < dStart) return alert("结束日期错误");
+        if(dStart < pStart || dEnd > pEnd) {
+            alert(`日期必须在演唱会期间内 (${currentProject.start} 至 ${currentProject.end})`);
+            if(isMulti) { document.getElementById('orderStartDate').value=''; document.getElementById('orderEndDate').value=''; }
+            else { document.getElementById('orderSingleDate').value=''; }
+            return;
+        }
+
+        const days = (dEnd - dStart)/(1000*60*60*24) + 1;
+        if(isMulti) infoDiv.innerText = `共租 ${days} 天`;
+
+        updateAvailabilityUI(sStr, days);
+    }
+
+    function updateAvailabilityUI(startDateStr, duration) {
+        let mode, pre, post;
+        if(currentProject.scenario === 'local') {
+            mode = document.querySelector('input[name="rentMode"]:checked').value;
+            if(mode === 'safe') { pre=1; post=1; }
+            else if(mode === 'aggressive') { pre=0; post=0; }
+            else { pre = parseInt(document.getElementById('customPre').value)||0; post = parseInt(document.getElementById('customPost').value)||0; }
+        } else {
+            mode = 'shipping';
+            const road = parseInt(document.getElementById('shipDays').value)||2;
+            pre = road; post = road;
+        }
+
+        const requiredOcc = calculateOccupancy(startDateStr, duration, pre, post);
+        const requiredDates = requiredOcc.occupyDates;
+
+        const bodySel = document.getElementById('selectBody');
+        const lensSel = document.getElementById('selectLens');
+        bodySel.disabled = false;
+        lensSel.disabled = false;
+
+        renderSmartOptions('selectBody', 'body', requiredDates);
+        renderSmartOptions('selectLens', 'lens', requiredDates);
+    }
+
+    function renderSmartOptions(elId, type, requiredDates) {
+        const sel = document.getElementById(elId);
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">-- 请选择 --</option>';
+        const items = inventory.filter(i => i.type === type);
+        let count = 0;
+        
+        items.forEach(i => {
+            const conflict = checkItemConflict(i.id, requiredDates);
+            const opt = document.createElement('option');
+            opt.value = i.id;
+            if(conflict) {
+                opt.disabled = true;
+                const release = getReleaseDate(i.id, requiredDates);
+                opt.text = `${i.name} (占用至 ${release.slice(5)})`;
+                opt.classList.add('text-occupied');
+            } else {
+                opt.text = i.name;
+                count++;
+            }
+            sel.appendChild(opt);
+        });
+        if(cur && !sel.querySelector(`option[value="${cur}"]`).disabled) sel.value = cur;
+        
+        const status = document.getElementById(type === 'body' ? 'bodyStatus' : 'lensStatus');
+        status.innerText = `(余${count})`;
+        status.className = count>0 ? 'text-success small' : 'text-danger small';
+    }
+
+    function addOrder() {
+        if(!currentProject) return alert("请先建立项目");
+        const isMulti = document.getElementById('typeMulti').checked;
+        const sStr = isMulti ? document.getElementById('orderStartDate').value : document.getElementById('orderSingleDate').value;
+        const eStr = isMulti ? document.getElementById('orderEndDate').value : sStr;
+        const bodyId = document.getElementById('selectBody').value;
+        const lensId = document.getElementById('selectLens').value;
+        const price = parseFloat(document.getElementById('rentPrice').value)||0;
+        const ship = parseFloat(document.getElementById('shipCost').value)||0;
+        const notes = document.getElementById('rentNote').value;
+
+        if(!bodyId && !lensId) return alert("请选择设备");
+        if(!sStr) return alert("请选择日期");
+
+        const duration = (new Date(eStr) - new Date(sStr))/(1000*60*60*24) + 1;
+        
+        let mode, pre, post;
+        if(currentProject.scenario === 'local') {
+            mode = document.querySelector('input[name="rentMode"]:checked').value;
+            if(mode === 'safe') { pre=1; post=1; }
+            else if(mode === 'aggressive') { pre=0; post=0; }
+            else { pre = parseInt(document.getElementById('customPre').value)||0; post = parseInt(document.getElementById('customPost').value)||0; }
+        } else {
+            mode = 'shipping';
+            const road = parseInt(document.getElementById('shipDays').value)||2;
+            pre = road; post = road;
+        }
+
+        const occ = calculateOccupancy(sStr, duration, pre, post);
+        let itemIds = []; if(bodyId) itemIds.push(bodyId); if(lensId) itemIds.push(lensId);
+
+        if(checkConflict(itemIds, occ.occupyDates)) return;
+
+        const info = buildEventInfo(bodyId, lensId);
+        const serialNo = `NO.${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${serialCounter++}`;
+
+        eventsData.push({
+            id: Date.now().toString(), serialNo, 
+            concert: currentProject.name,
+            itemIds, itemName: info.name, bodyColor: info.bColor, lensColor: info.lColor, itemColor: info.mainColor,
+            startStr: occ.startStr, endStr: occ.endStr,
+            mode, duration, customPre: pre, customPost: post, shipDays: (mode==='shipping'?pre:0),
+            mainDate: sStr, occupyDates: occ.occupyDates, price, shipCost: ship, notes
+        });
+
+        refreshCalendar(); saveLocalCache(); 
+        alert("添加成功"); incrementUnread();
+        onOrderDateChange(); autoRunSimulation();
+    }
+
+    // --- 核心协作功能 (更新版) ---
+
+    // 1. 生成压缩码 & 二维码
+    function generateQRCode() {
+        const payload = {
+            v: 1, t: Date.now(),
+            inv: inventory, evs: eventsData, cnt: serialCounter, proj: currentProject
+        };
+
+        try {
+            const jsonStr = JSON.stringify(payload);
+            // 使用 lz-string 压缩成 Base64
+            const compressed = LZString.compressToBase64(jsonStr);
+            
+            const qrContainer = document.getElementById('qrcode-container');
+            qrContainer.innerHTML = ''; // 清空旧的
+
+            if(compressed.length > 2500) {
+                qrContainer.innerHTML = '<div class="text-danger small">数据量太大 (>' + compressed.length + ' chars)，二维码无法生成。<br>请直接点击“复制压缩码”发送给队友。</div>';
+            } else {
+                new QRCode(qrContainer, {
+                    text: compressed,
+                    width: 200,
+                    height: 200,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.L
+                });
+            }
+            qrModal.show();
+        } catch(e) {
+            alert("生成失败: " + e.message);
+        }
+    }
+
+    function copyCode() {
+        const payload = { v: 1, t: Date.now(), inv: inventory, evs: eventsData, cnt: serialCounter, proj: currentProject };
+        const compressed = LZString.compressToBase64(JSON.stringify(payload));
+        
+        navigator.clipboard.writeText(compressed).then(() => {
+            alert("压缩码已复制到剪贴板！");
+        }).catch(err => {
+            // 备用复制方案
+            const ta = document.createElement('textarea');
+            ta.value = compressed;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            alert("压缩码已复制！");
+        });
+    }
+
+    // 2. 扫码功能
+    function openScanModal() {
+        scanModal.show();
+        setTimeout(startScanner, 300); // 等待模态框动画
+    }
+
+    function startScanner() {
+        if(html5QrCodeScanner) { 
+            // 已经初始化过
+            return; 
+        }
+        
+        html5QrCodeScanner = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        
+        html5QrCodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+        .catch(err => {
+            document.getElementById('reader').innerHTML = `<div class="alert alert-danger p-2 m-3">无法启动摄像头。请确保：<br>1. 使用 HTTPS 或 localhost<br>2. 已允许摄像头权限<br>错误: ${err}</div>`;
+        });
+    }
+
+    function stopScanner() {
+        if(html5QrCodeScanner) {
+            html5QrCodeScanner.stop().then(() => {
+                html5QrCodeScanner.clear();
+                html5QrCodeScanner = null;
+            }).catch(err => console.log("Failed to stop scanner", err));
+        }
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        stopScanner();
+        scanModal.hide();
+        processSyncData(decodedText);
+    }
+
+    function onScanFailure(error) {
+        // 扫描中，通常忽略错误日志
+        // console.warn(`Code scan error = ${error}`);
+    }
+
+    // 3. 粘贴文本写入
+    function applyFromInput() {
+        const code = document.getElementById('inputOpCode').value.trim();
+        if(!code) return alert("请输入代码");
+        processSyncData(code);
+    }
+
+    // 4. 处理同步数据的核心逻辑
+    function processSyncData(compressedCode) {
+        try {
+            let jsonStr = LZString.decompressFromBase64(compressedCode);
+            // 容错：如果不是压缩的，尝试直接解析（兼容旧逻辑）
+            if(!jsonStr) jsonStr = compressedCode; 
+            
+            const data = JSON.parse(jsonStr);
+            if(!data.inv || !data.evs) throw new Error("数据格式不正确");
+
+            const dateStr = new Date(data.t).toLocaleString();
+            if(!confirm(`【覆盖警告】\n\n检测到有效数据！\n生成时间: ${dateStr}\n\n确定要覆盖当前的全部数据吗？此操作不可撤销。`)) return;
+
+            // 应用数据
+            inventory = data.inv;
+            eventsData = data.evs;
+            serialCounter = data.cnt || 1;
+            currentProject = data.proj;
+
+            saveLocalCache();
+            loadLocalCache();
+            alert("✅ 数据覆盖成功！页面已刷新。");
+            
+            document.getElementById('inputOpCode').value = '';
+        } catch (e) {
+            alert("❌ 无效的数据代码。\n请确认是否复制完整，或二维码是否清晰。");
+        }
+    }
+
+    // --- 辅助函数 ---
+    function autoRunSimulation() {
+        const container = document.getElementById('simulationResults');
+        const infoBar = document.getElementById('simInfoBar');
+        if(!currentProject) {
+            container.innerHTML = '';
+            infoBar.innerText = "请先在 [新建订单] 页建立项目";
+            infoBar.className = "alert alert-secondary py-1 small mb-2 text-center";
+            return;
+        }
+        const pStart = new Date(currentProject.start);
+        const pEnd = new Date(currentProject.end);
+        const totalDays = (pEnd - pStart)/(1000*60*60*24) + 1;
+
+        infoBar.innerText = `推演基准: ${currentProject.name} (共${totalDays}天)`;
+        infoBar.className = "alert alert-info py-1 small mb-2 text-center";
+        
+        container.innerHTML = '';
+        simulationData = {};
+
+        for (let duration = 1; duration <= totalDays; duration++) {
+            let html = `<div class="sim-card"><div class="sim-header"><span>⏳ 连租 ${duration} 天</span></div><div class="sim-body">`;
+            for (let offset = 0; offset <= totalDays - duration; offset++) {
+                let simDate = new Date(pStart); simDate.setDate(simDate.getDate() + offset);
+                let simDateStr = fmtDate(simDate);
+                let dateLabel = simDateStr.slice(5);
+
+                if(currentProject.scenario === 'local') {
+                    const safeOcc = calculateOccupancy(simDateStr, duration, 1, 1);
+                    const aggOcc = calculateOccupancy(simDateStr, duration, 0, 0);
+                    const safeAvail = checkAvailability(safeOcc.occupyDates);
+                    const aggAvail = checkAvailability(aggOcc.occupyDates);
+                    const keySafe = `d${duration}_o${offset}_safe`;
+                    const keyAgg = `d${duration}_o${offset}_agg`;
+                    simulationData[keySafe] = safeAvail; simulationData[keyAgg] = aggAvail;
+                    html += `<div class="mb-2 pb-2 border-bottom"><div class="fw-bold text-dark mb-1" style="font-size:13px">📅 起始: ${dateLabel}</div><div class="sim-row"><span class="sim-tag tag-safe">安全</span><div class="d-flex gap-2"><button class="sim-btn" onclick="showDetail('${keySafe}', 'body')">机身 <strong>${safeAvail.bodies.length}</strong></button><button class="sim-btn" onclick="showDetail('${keySafe}', 'lens')">镜头 <strong>${safeAvail.lenses.length}</strong></button><button class="sim-btn" onclick="showDetail('${keySafe}', 'combo')">套装 <strong>${safeAvail.combos.length}</strong></button></div></div><div class="sim-row"><span class="sim-tag tag-agg">激进</span><div class="d-flex gap-2"><button class="sim-btn" onclick="showDetail('${keyAgg}', 'body')">机身 <strong>${aggAvail.bodies.length}</strong></button><button class="sim-btn" onclick="showDetail('${keyAgg}', 'lens')">镜头 <strong>${aggAvail.lenses.length}</strong></button><button class="sim-btn" onclick="showDetail('${keyAgg}', 'combo')">套装 <strong>${aggAvail.combos.length}</strong></button></div></div></div>`;
+                } else {
+                    const road = 2; 
+                    const shipOcc = calculateOccupancy(simDateStr, duration, road, road);
+                    const avail = checkAvailability(shipOcc.occupyDates);
+                    const key = `d${duration}_o${offset}_ship`;
+                    simulationData[key] = avail;
+                    html += `<div class="mb-2 pb-2 border-bottom"><div class="fw-bold text-dark mb-1" style="font-size:13px">📅 起始: ${dateLabel}</div><div class="sim-row"><span class="sim-tag" style="background:#fd7e14">邮寄</span><div class="d-flex gap-2"><button class="sim-btn" onclick="showDetail('${key}', 'body')">机身 <strong>${avail.bodies.length}</strong></button><button class="sim-btn" onclick="showDetail('${key}', 'lens')">镜头 <strong>${avail.lenses.length}</strong></button><button class="sim-btn" onclick="showDetail('${key}', 'combo')">套装 <strong>${avail.combos.length}</strong></button></div></div></div>`;
+                }
+            }
+            html += `</div></div>`; container.innerHTML += html;
+        }
+    }
+
+    function calculateOccupancy(startDateStr, duration, pre, post) {
+        const start = new Date(startDateStr);
+        const loopEnd = (duration - 1) + post;
+        let dates = [];
+        for(let i = -pre; i <= loopEnd; i++) { dates.push(fmtDate(start, i)); }
+        let startD = new Date(start); startD.setDate(startD.getDate() - pre);
+        let endD = new Date(start); endD.setDate(endD.getDate() + loopEnd + 1);
+        return { occupyDates: dates, startStr: fmtDate(startD), endStr: fmtDate(endD) };
+    }
+    function checkItemConflict(itemId, requiredDates) {
+        return eventsData.some(ev => ev.itemIds.includes(itemId) && ev.occupyDates.some(d => requiredDates.includes(d)));
+    }
+    function getReleaseDate(itemId, requiredDates) {
+        let maxDate = "0000-00-00";
+        eventsData.filter(ev => ev.itemIds.includes(itemId) && ev.occupyDates.some(d => requiredDates.includes(d))).forEach(ev => ev.occupyDates.forEach(d => { if(d > maxDate) maxDate = d; }));
+        return maxDate;
+    }
+    function showHelp(type, e) { e.stopPropagation(); const t=document.getElementById('helpTitle'); const b=document.getElementById('helpBody'); if(type==='safe'){t.innerText='安全模式';b.innerHTML='提前1天占，推迟1天还。<br>共占用：天数+2';}else{t.innerText='激进模式';b.innerHTML='当天占，次日早还(不占次日库存)。<br>共占用：天数';} helpModal.show(); }
+    function updateInventoryList() { const list = document.getElementById('invList'); list.innerHTML = ''; if(inventory.length===0) { list.innerHTML='<li class="list-group-item text-center text-muted">暂无设备</li>'; return; } inventory.forEach(item => { list.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center"><div><span style="display:inline-block;width:12px;height:12px;background:${item.color};margin-right:5px;border-radius:2px;"></span>${item.name}</div><div><span class="badge bg-light text-dark me-2">${item.type==='body'?'机身':'镜头'}</span><a href="#" onclick="delInv('${item.id}')" class="text-muted">×</a></div></li>`; }); }
+    function addInventory() { const name = document.getElementById('invName').value; const type = document.getElementById('invType').value; const color = document.getElementById('invColor').value; if(!name) return alert("请输入名称"); inventory.push({ id: Date.now().toString(), name, type, color }); document.getElementById('invName').value = ''; refreshRandomColor(); updateInventoryList(); updateAvailabilityUI(); saveLocalCache(); alert("已添加"); }
+    function delInv(id) { if(confirm("删除？")) { inventory = inventory.filter(i=>i.id!==id); updateInventoryList(); saveLocalCache(); } }
+    function resetInventory() { if(confirm("清空库存？")) { inventory=[]; updateInventoryList(); updateAvailabilityUI(); saveLocalCache(); } }
+    function switchTab(tabId, navEl) { document.querySelectorAll('.tab-content-section').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + tabId).classList.add('active'); document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active')); navEl.classList.add('active'); if(tabId === 'calendar' && calendar) setTimeout(() => calendar.updateSize(), 50); if(tabId === 'order') if(document.getElementById('sub-history').style.display === 'block') resetUnread(); if(tabId === 'inventory') autoRunSimulation(); }
+    function switchOrderSubTab(subId, navEl) { document.getElementById('sub-create').style.display = 'none'; document.getElementById('sub-history').style.display = 'none'; document.getElementById('sub-' + subId).style.display = 'block'; document.querySelectorAll('.sub-nav-item').forEach(el => el.classList.remove('active')); navEl.classList.add('active'); if(subId === 'history') { renderHistory(); resetUnread(); } }
+    function incrementUnread() { unreadCount++; document.getElementById('historyBadge').innerText = unreadCount; document.getElementById('historyBadge').style.display = 'block'; }
+    function resetUnread() { unreadCount = 0; document.getElementById('historyBadge').style.display = 'none'; }
+    function checkAvailability(requiredDates) { const availableBodies = inventory.filter(item => item.type === 'body' && !checkItemConflict(item.id, requiredDates)); const availableLenses = inventory.filter(item => item.type === 'lens' && !checkItemConflict(item.id, requiredDates)); const combos = []; const count = Math.min(availableBodies.length, availableLenses.length); for(let i=0; i<count; i++) { combos.push({ body: availableBodies[i], lens: availableLenses[i] }); } return { bodies: availableBodies, lenses: availableLenses, combos: combos }; }
+    function showDetail(key, type) { const data = simulationData[key]; if(!data) return; const listEl = document.getElementById('detailList'); const titleEl = document.getElementById('detailTitle'); listEl.innerHTML = ''; if(type === 'combo') { titleEl.innerText = `可组套装 (${data.combos.length})`; if(data.combos.length === 0) listEl.innerHTML = '<div class="p-3 text-center text-muted">无可用套装</div>'; data.combos.forEach(c => { listEl.innerHTML += `<div class="detail-combo"><span class="fw-bold" style="color:${c.body.color}">■ ${c.body.name}</span> + <span class="fw-bold" style="color:${c.lens.color}">■ ${c.lens.name}</span></div>`; }); } else { const items = (type === 'body') ? data.bodies : data.lenses; const label = (type === 'body') ? '机身' : '镜头'; titleEl.innerText = `可用${label} (${items.length})`; if(items.length === 0) listEl.innerHTML = '<div class="p-3 text-center text-muted">无可用设备</div>'; items.forEach(item => { listEl.innerHTML += `<div class="detail-item"><span style="display:inline-block;width:12px;height:12px;background:${item.color};margin-right:8px;border-radius:2px;"></span>${item.name}</div>`; }); } detailModal.show(); }
+    function checkConflict(itemIds, occupyDates, excludeId = null) { for (let ev of eventsData) { if (ev.id === excludeId) continue; if (ev.itemIds.some(id => itemIds.includes(id)) && ev.occupyDates.some(d => occupyDates.includes(d))) { alert(`冲突！设备被 [${ev.serialNo}] 占用`); return true; } } return false; }
+    function buildEventInfo(bId, lId) { let name="", bColor=null, lColor=null, mainColor="#3788d8"; const b = inventory.find(i => i.id === bId); const l = inventory.find(i => i.id === lId); if (b && l) { name = `${b.name}+${l.name}`; bColor = b.color; lColor = l.color; mainColor = b.color; } else if (b) { name = b.name; bColor = b.color; mainColor = b.color; } else { name = l.name; lColor = l.color; mainColor = l.color; } return { name, bColor, lColor, mainColor }; }
+    function calcPrice() { const price = parseFloat(document.getElementById('rentPrice').value)||0; const ship = parseFloat(document.getElementById('shipCost').value)||0; const fee = price * 0.032; document.getElementById('calcFee').innerText = fee.toFixed(0); document.getElementById('calcNet').innerText = (price - fee - ship).toFixed(0); }
+    function previewSelection() { const bId = document.getElementById('selectBody').value; const lId = document.getElementById('selectLens').value; const box = document.getElementById('previewBox'); if(!bId&&!lId) { box.style.display='none'; return; } let html = ""; const b = inventory.find(i => i.id === bId); const l = inventory.find(i => i.id === lId); if (b && l) html = `<span style="color:${b.color}">■</span> ${b.name} + <span style="color:${l.color}">■</span> ${l.name}`; else if (b) html = `<span style="color:${b.color}">■</span> ${b.name}`; else if (l) html = `<span style="color:${l.color}">■</span> ${l.name}`; document.getElementById('previewText').innerHTML = html; box.style.display = 'block'; }
+    function deleteEvent() { if(!confirm("删除订单？")) return; const id = document.getElementById('editId').value; eventsData = eventsData.filter(e => e.id !== id); refreshCalendar(); renderHistory(); saveLocalCache(); editModal.hide(); autoRunSimulation(); onOrderDateChange(); }
+    function openEditModal(id) { const ev = eventsData.find(e => e.id === id); if(!ev) return; document.getElementById('editId').value = ev.id; editModal.show(); }
+    function refreshRandomColor() { const c = getRandomVibrantColor(); document.getElementById('invColor').value = c; document.getElementById('colorCodeText').innerText = c; }
+    function getRandomVibrantColor() { const h = Math.floor(Math.random() * 360); const s = Math.floor(Math.random() * 30) + 60; const l = Math.floor(Math.random() * 20) + 40; return hslToHex(h, s, l); }
+    function hslToHex(h, s, l) { l /= 100; const a = s * Math.min(l, 1 - l) / 100; const f = n => { const k = (n + h / 30) % 12; const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1); return Math.round(255 * color).toString(16).padStart(2, '0'); }; return `#${f(0)}${f(8)}${f(4)}`; }
+    function fmtDate(d, offsetDays = 0) { const newD = new Date(d); newD.setDate(newD.getDate() + offsetDays); return newD.toISOString().split('T')[0]; }
+    function saveLocalCache() { localStorage.setItem('rent_app_v15', JSON.stringify({ inventory, eventsData, serialCounter, currentProject })); }
+    
+    function loadLocalCache() { 
+        const data = JSON.parse(localStorage.getItem('rent_app_v15')); 
+        if (data) { 
+            inventory = data.inventory || []; 
+            eventsData = data.eventsData || []; 
+            serialCounter = data.serialCounter || 1; 
+            currentProject = data.currentProject || null; 
+            // 重置UI
+            document.getElementById('projectSection').classList.remove('locked-section');
+            document.getElementById('projName').classList.remove('locked-input');
+            document.querySelectorAll('#projectSection input, #projectSection label').forEach(el => el.disabled = false);
+            document.getElementById('btnLockProject').style.display = 'block';
+            document.getElementById('orderSection').style.display = 'none';
+            document.getElementById('projectControlSection').style.display = 'none';
+            if(currentProject) { 
+                document.getElementById('projName').value=currentProject.name; 
+                document.getElementById('projStartDate').value=currentProject.start; 
+                document.getElementById('projEndDate').value=currentProject.end; 
+                if(currentProject.scenario==='local'){ 
+                    document.getElementById('scLocal').checked=true; 
+                    document.getElementById('ruleLocalArea').style.display='block'; 
+                    document.getElementById('ruleShipArea').style.display='none'; 
+                } else { 
+                    document.getElementById('scShip').checked=true; 
+                    document.getElementById('ruleLocalArea').style.display='none'; 
+                    document.getElementById('ruleShipArea').style.display='block'; 
+                } 
+                lockProject(); 
+            } 
+            refreshCalendar(); 
+        } 
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('historyList');
+        document.getElementById('historyCount').innerText = eventsData.length;
+        if (eventsData.length === 0) {
+            list.innerHTML = '<div class="text-center text-muted mt-4">暂无历史订单</div>';
+            document.getElementById('statTotalNet').innerText = '0';
+            document.getElementById('statTotalGross').innerText = '0';
+            document.getElementById('statTotalShip').innerText = '0';
+            return;
+        }
+        let globalNet = 0, globalGross = 0, globalShip = 0;
+        const groups = new Map(); 
+        [...eventsData].reverse().forEach(e => {
+            const fee = e.price * 0.032;
+            const net = e.price - fee - e.shipCost;
+            globalGross += e.price; globalShip += e.shipCost; globalNet += net;
+            const pName = e.concert || "未命名项目";
+            if (!groups.has(pName)) { groups.set(pName, { totalNet: 0, count: 0, orders: [] }); }
+            const g = groups.get(pName);
+            g.totalNet += net; g.count += 1; g.orders.push({ ...e, netVal: net });
+        });
+        document.getElementById('statTotalGross').innerText = globalGross.toFixed(0);
+        document.getElementById('statTotalShip').innerText = globalShip.toFixed(0);
+        document.getElementById('statTotalNet').innerText = globalNet.toFixed(0);
+        let html = '';
+        groups.forEach((data, name) => {
+            html += `<div class="card mb-3 border shadow-sm overflow-hidden"><div class="card-header bg-light d-flex justify-content-between align-items-center px-3 py-2"><div><strong class="text-dark">${name}</strong><span class="badge bg-secondary rounded-pill ms-1">${data.count}单</span></div><div class="text-success fw-bold small">项目净入: ¥${data.totalNet.toFixed(0)}</div></div><div class="card-body p-2 bg-white">`;
+            data.orders.forEach(e => {
+                html += `<div class="border rounded p-2 mb-2 position-relative" style="border-left: 3px solid ${e.itemColor} !important; background-color: #fff;"><div class="d-flex justify-content-between align-items-start"><div style="width: 75%;"><div class="small text-secondary mb-1"><span class="fw-bold text-dark">${e.itemName}</span><span class="ms-1 text-muted">(${e.duration||1}天)</span></div><div class="small text-muted">📅 ${e.mainDate} <span class="mx-1">|</span> <span class="text-dark">¥${e.price}</span></div></div><div class="text-end"><div class="fw-bold text-success small mb-1">净 ¥${e.netVal.toFixed(0)}</div><button class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:10px;" onclick="openEditModal('${e.id}')">管理</button></div></div>${e.notes ? `<div class="small text-muted mt-1 border-top pt-1 fst-italic">📝 ${e.notes}</div>` : ''}</div>`;
+            });
+            html += `</div></div>`;
+        });
+        list.innerHTML = html;
+    }
+    
+    function exportToExcel() { if(eventsData.length===0 && inventory.length===0) return alert("无数据"); const wb = XLSX.utils.book_new(); const allRows = eventsData.map(e => ({ "单号": e.serialNo, "项目": e.concert, "日期": e.mainDate, "天数": e.duration, "设备": e.itemName, "租金": e.price, "运费": e.shipCost, "备注": e.notes, "ID集合": e.itemIds.join(',') })); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allRows), "总计"); const invRows = inventory.map(i => ({ "ID": i.id, "名称": i.name, "类型": i.type, "颜色": i.color })); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(invRows), "设备库"); XLSX.writeFile(wb, `租赁报表.xlsx`); }
+    function importFromExcel(input) { const file = input.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = function(e) { const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'}); if(wb.Sheets["设备库"]) { inventory = XLSX.utils.sheet_to_json(wb.Sheets["设备库"]).map(r => ({ id: r["ID"].toString(), name: r["名称"], type: r["类型"], color: r["颜色"] })); } if(wb.Sheets["总计"]) { eventsData = XLSX.utils.sheet_to_json(wb.Sheets["总计"]).map(r => { const ids = r["ID集合"]?r["ID集合"].split(','):[]; let bColor=null,lColor=null,mainColor="#333"; if(ids.length>0){const i=inventory.find(x=>x.id==ids[0]);if(i)mainColor=bColor=i.color;} if(ids.length>1){const i=inventory.find(x=>x.id==ids[1]);if(i)lColor=i.color;} return { id: Date.now()+Math.random(), serialNo: r["单号"], concert: r["项目"], itemIds: ids, itemName: r["设备"], bodyColor: bColor, lensColor: lColor, itemColor: mainColor, startStr: r["日期"], endStr: r["日期"], mainDate: r["日期"], duration: r["天数"], occupyDates: [], price: r["租金"], shipCost: r["运费"], notes: r["备注"], mode: 'safe' }; }); } updateInventoryList(); refreshCalendar(); saveLocalCache(); alert("恢复成功"); }; reader.readAsArrayBuffer(file); input.value=''; }
+</script>
+</body>
+</html>
